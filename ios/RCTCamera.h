@@ -2,6 +2,7 @@
 #import <AVFoundation/AVFoundation.h>
 #import "CameraFocusSquare.h"
 
+@class RCTBridge;
 @class RCTCameraManager;
 
 @interface RCTCamera : UIView
