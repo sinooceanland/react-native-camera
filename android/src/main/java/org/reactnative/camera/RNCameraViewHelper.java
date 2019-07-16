@@ -6,20 +6,17 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.media.CamcorderProfile;
 import android.os.Build;
-import android.support.media.ExifInterface;
-import android.util.SparseArray;
+import androidx.exifinterface.media.ExifInterface;
 import android.view.ViewGroup;
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.ReactContext;
+import com.facebook.react.bridge.ReadableMapKeySetIterator;
 import com.facebook.react.bridge.WritableMap;
+import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.uimanager.UIManagerModule;
 import com.google.android.cameraview.CameraView;
-import com.google.android.gms.vision.barcode.Barcode;
-import com.google.android.gms.vision.face.Face;
-import com.google.android.gms.vision.text.TextBlock;
 import com.google.zxing.Result;
 import org.reactnative.camera.events.*;
-import org.reactnative.camera.utils.ImageDimensions;
 import org.reactnative.barcodedetector.RNBarcodeDetector;
 import org.reactnative.facedetector.RNFaceDetector;
 
@@ -175,26 +172,26 @@ public class RNCameraViewHelper {
     reactContext.getNativeModule(UIManagerModule.class).getEventDispatcher().dispatchEvent(event);
   }
 
+  // Picture saved event
+
+  public static void emitPictureSavedEvent(ViewGroup view, WritableMap response) {
+    PictureSavedEvent event = PictureSavedEvent.obtain(view.getId(), response);
+    ReactContext reactContext = (ReactContext) view.getContext();
+    reactContext.getNativeModule(UIManagerModule.class).getEventDispatcher().dispatchEvent(event);
+  }
+
+  // Picture taken event
+
+  public static void emitPictureTakenEvent(ViewGroup view) {
+    PictureTakenEvent event = PictureTakenEvent.obtain(view.getId());
+    ReactContext reactContext = (ReactContext) view.getContext();
+    reactContext.getNativeModule(UIManagerModule.class).getEventDispatcher().dispatchEvent(event);
+  }
+
   // Face detection events
 
-  public static void emitFacesDetectedEvent(
-      ViewGroup view,
-      SparseArray<Face> faces,
-      ImageDimensions dimensions
-  ) {
-    float density = view.getResources().getDisplayMetrics().density;
-
-    double scaleX = (double) view.getWidth() / (dimensions.getWidth() * density);
-    double scaleY = (double) view.getHeight() / (dimensions.getHeight() * density);
-
-    FacesDetectedEvent event = FacesDetectedEvent.obtain(
-        view.getId(),
-        faces,
-        dimensions,
-        scaleX,
-        scaleY
-    );
-
+  public static void emitFacesDetectedEvent(ViewGroup view, WritableArray data) {
+    FacesDetectedEvent event = FacesDetectedEvent.obtain(view.getId(), data);
     ReactContext reactContext = (ReactContext) view.getContext();
     reactContext.getNativeModule(UIManagerModule.class).getEventDispatcher().dispatchEvent(event);
   }
@@ -207,15 +204,8 @@ public class RNCameraViewHelper {
 
   // Barcode detection events
 
-  public static void emitBarcodesDetectedEvent(
-      ViewGroup view,
-      SparseArray<Barcode> barcodes
-  ) {
-    BarcodesDetectedEvent event = BarcodesDetectedEvent.obtain(
-        view.getId(),
-        barcodes
-    );
-
+  public static void emitBarcodesDetectedEvent(ViewGroup view, WritableArray barcodes) {
+    BarcodesDetectedEvent event = BarcodesDetectedEvent.obtain(view.getId(), barcodes);
     ReactContext reactContext = (ReactContext) view.getContext();
     reactContext.getNativeModule(UIManagerModule.class).getEventDispatcher().dispatchEvent(event);
   }
@@ -228,66 +218,63 @@ public class RNCameraViewHelper {
 
   // Bar code read event
 
-  public static void emitBarCodeReadEvent(ViewGroup view, Result barCode) {
-    BarCodeReadEvent event = BarCodeReadEvent.obtain(view.getId(), barCode);
+  public static void emitBarCodeReadEvent(ViewGroup view, Result barCode, int width, int height) {
+    BarCodeReadEvent event = BarCodeReadEvent.obtain(view.getId(), barCode, width,  height);
     ReactContext reactContext = (ReactContext) view.getContext();
     reactContext.getNativeModule(UIManagerModule.class).getEventDispatcher().dispatchEvent(event);
   }
 
   // Text recognition event
 
-  public static void emitTextRecognizedEvent(
-      ViewGroup view,
-      SparseArray<TextBlock> textBlocks,
-      ImageDimensions dimensions) {
-    float density = view.getResources().getDisplayMetrics().density;
-
-    double scaleX = (double) view.getWidth() / (dimensions.getWidth() * density);
-    double scaleY = (double) view.getHeight() / (dimensions.getHeight() * density);
-
-    TextRecognizedEvent event = TextRecognizedEvent.obtain(
-        view.getId(),
-        textBlocks,
-        dimensions,
-        scaleX,
-        scaleY
-    );
-
+  public static void emitTextRecognizedEvent(ViewGroup view, WritableArray data) {
+    TextRecognizedEvent event = TextRecognizedEvent.obtain(view.getId(), data);
     ReactContext reactContext = (ReactContext) view.getContext();
     reactContext.getNativeModule(UIManagerModule.class).getEventDispatcher().dispatchEvent(event);
   }
 
   // Utilities
 
-  public static int getCorrectCameraRotation(int rotation, int facing) {
+  public static int getCorrectCameraRotation(int rotation, int facing, int cameraOrientation) {
     if (facing == CameraView.FACING_FRONT) {
-      return (rotation - 90 + 360) % 360;
+      // Tested the below line and there's no need to do the mirror calculation
+      return (cameraOrientation + rotation) % 360;
     } else {
-      return (-rotation + 90 + 360) % 360;
+      final int landscapeFlip = rotationIsLandscape(rotation) ? 180 : 0;
+      return (cameraOrientation - rotation + landscapeFlip) % 360;
     }
+  }
+
+  private static boolean rotationIsLandscape(int rotation) {
+    return (rotation == Constants.LANDSCAPE_90 ||
+            rotation == Constants.LANDSCAPE_270);
+  }
+
+  private static int getCamcorderProfileQualityFromCameraModuleConstant(int quality) {
+    switch (quality) {
+      case CameraModule.VIDEO_2160P:
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+          return CamcorderProfile.QUALITY_2160P;
+        }
+      case CameraModule.VIDEO_1080P:
+        return CamcorderProfile.QUALITY_1080P;
+      case CameraModule.VIDEO_720P:
+        return CamcorderProfile.QUALITY_720P;
+      case CameraModule.VIDEO_480P:
+        return CamcorderProfile.QUALITY_480P;
+      case CameraModule.VIDEO_4x3:
+        return CamcorderProfile.QUALITY_480P;
+    }
+    return CamcorderProfile.QUALITY_HIGH;
   }
 
   public static CamcorderProfile getCamcorderProfile(int quality) {
     CamcorderProfile profile = CamcorderProfile.get(CamcorderProfile.QUALITY_HIGH);
-    switch (quality) {
-      case CameraModule.VIDEO_2160P:
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-          profile = CamcorderProfile.get(CamcorderProfile.QUALITY_2160P);
-        }
-        break;
-      case CameraModule.VIDEO_1080P:
-        profile = CamcorderProfile.get(CamcorderProfile.QUALITY_1080P);
-        break;
-      case CameraModule.VIDEO_720P:
-        profile = CamcorderProfile.get(CamcorderProfile.QUALITY_720P);
-        break;
-      case CameraModule.VIDEO_480P:
-        profile = CamcorderProfile.get(CamcorderProfile.QUALITY_480P);
-        break;
-      case CameraModule.VIDEO_4x3:
-        profile = CamcorderProfile.get(CamcorderProfile.QUALITY_480P);
+    int camcorderQuality = getCamcorderProfileQualityFromCameraModuleConstant(quality);
+    if (CamcorderProfile.hasProfile(camcorderQuality)) {
+      profile = CamcorderProfile.get(camcorderQuality);
+      if (quality == CameraModule.VIDEO_4x3) {
         profile.videoFrameWidth = 640;
-        break;
+      }
     }
     return profile;
   }
@@ -320,6 +307,27 @@ public class RNCameraViewHelper {
     }
 
     return exifMap;
+  }
+
+  public static void setExifData(ExifInterface exifInterface, WritableMap exifMap) {
+    ReadableMapKeySetIterator iterator = exifMap.keySetIterator();
+    while (iterator.hasNextKey()) {
+      String key = iterator.nextKey();
+      switch (exifMap.getType(key)) {
+        case Null:
+          exifInterface.setAttribute(key, null);
+          break;
+        case Boolean:
+          exifInterface.setAttribute(key, Boolean.toString(exifMap.getBoolean(key)));
+          break;
+        case Number:
+          exifInterface.setAttribute(key, Double.toString(exifMap.getDouble(key)));
+          break;
+        case String:
+          exifInterface.setAttribute(key, exifMap.getString(key));
+          break;
+      }
+    }
   }
 
   public static Bitmap generateSimulatorPhoto(int width, int height) {

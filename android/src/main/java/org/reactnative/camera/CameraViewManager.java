@@ -1,12 +1,14 @@
 package org.reactnative.camera;
 
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;
 import com.facebook.react.bridge.ReadableArray;
+import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.common.MapBuilder;
 import com.facebook.react.uimanager.ThemedReactContext;
 import com.facebook.react.uimanager.ViewGroupManager;
 import com.facebook.react.uimanager.annotations.ReactProp;
 import com.google.android.cameraview.AspectRatio;
+import com.google.android.cameraview.Size;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -21,7 +23,9 @@ public class CameraViewManager extends ViewGroupManager<RNCameraView> {
     EVENT_ON_BARCODES_DETECTED("onGoogleVisionBarcodesDetected"),
     EVENT_ON_FACE_DETECTION_ERROR("onFaceDetectionError"),
     EVENT_ON_BARCODE_DETECTION_ERROR("onGoogleVisionBarcodeDetectionError"),
-    EVENT_ON_TEXT_RECOGNIZED("onTextRecognized");
+    EVENT_ON_TEXT_RECOGNIZED("onTextRecognized"),
+    EVENT_ON_PICTURE_TAKEN("onPictureTaken"),
+    EVENT_ON_PICTURE_SAVED("onPictureSaved");
 
     private final String mName;
 
@@ -79,6 +83,11 @@ public class CameraViewManager extends ViewGroupManager<RNCameraView> {
     view.setFlash(torchMode);
   }
 
+  @ReactProp(name = "exposure")
+  public void setExposureCompensation(RNCameraView view, int exposure){
+    view.setExposureCompensation(exposure);
+  }
+
   @ReactProp(name = "autoFocus")
   public void setAutoFocus(RNCameraView view, boolean autoFocus) {
     view.setAutoFocus(autoFocus);
@@ -89,6 +98,13 @@ public class CameraViewManager extends ViewGroupManager<RNCameraView> {
     view.setFocusDepth(depth);
   }
 
+  @ReactProp(name = "autoFocusPointOfInterest")
+  public void setAutoFocusPointOfInterest(RNCameraView view, ReadableMap coordinates) {
+    float x = (float) coordinates.getDouble("x");
+    float y = (float) coordinates.getDouble("y");
+    view.setAutoFocusPointOfInterest(x, y);
+  }
+
   @ReactProp(name = "zoom")
   public void setZoom(RNCameraView view, float zoom) {
     view.setZoom(zoom);
@@ -97,6 +113,11 @@ public class CameraViewManager extends ViewGroupManager<RNCameraView> {
   @ReactProp(name = "whiteBalance")
   public void setWhiteBalance(RNCameraView view, int whiteBalance) {
     view.setWhiteBalance(whiteBalance);
+  }
+
+  @ReactProp(name = "pictureSize")
+  public void setPictureSize(RNCameraView view, String size) {
+    view.setPictureSize(size.equals("None") ? null : Size.parse(size));
   }
 
   @ReactProp(name = "barCodeTypes")
@@ -146,6 +167,11 @@ public class CameraViewManager extends ViewGroupManager<RNCameraView> {
     view.setFaceDetectionClassifications(classifications);
   }
 
+  @ReactProp(name = "trackingEnabled")
+  public void setTracking(RNCameraView view, boolean trackingEnabled) {
+    view.setTracking(trackingEnabled);
+  }
+  
   @ReactProp(name = "googleVisionBarcodeDetectorEnabled")
   public void setGoogleVisionBarcodeDetecting(RNCameraView view, boolean googleBarcodeDetectorEnabled) {
     view.setShouldGoogleDetectBarcodes(googleBarcodeDetectorEnabled);
@@ -154,6 +180,11 @@ public class CameraViewManager extends ViewGroupManager<RNCameraView> {
   @ReactProp(name = "googleVisionBarcodeType")
   public void setGoogleVisionBarcodeType(RNCameraView view, int barcodeType) {
     view.setGoogleVisionBarcodeType(barcodeType);
+  }
+
+  @ReactProp(name = "googleVisionBarcodeMode")
+  public void setGoogleVisionBarcodeMode(RNCameraView view, int barcodeMode) {
+    view.setGoogleVisionBarcodeMode(barcodeMode);
   }
 
   @ReactProp(name = "textRecognizerEnabled")
