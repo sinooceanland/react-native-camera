@@ -19,6 +19,7 @@
 #import <AVFoundation/AVFoundation.h>
 #import <ImageIO/ImageIO.h>
 #import "RCTSensorOrientationChecker.h"
+#import "UIImage+info.h"
 
 @interface RCTCameraManager ()
 
@@ -627,6 +628,19 @@ RCT_EXPORT_METHOD(hasFlash:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRej
             }
           }
           CGImageRelease(CGImage);
+
+          // 裁剪
+          if ([options objectForKey:@"cropRect"]) {
+              CGRect rect = [RCTConvert CGRect:[options objectForKey:@"cropRect"]];
+              UIImage *image = [UIImage imageWithCGImage:rotatedCGImage];
+              // 主要是按preview的效果逼近
+              CGRect thumbnailRect = [UIImage thumbnailRectFromSize:image.size scalingToSize:CGSizeMake(self.view.bounds.size.width, self.view.bounds.size.height)];
+              CGFloat factor = image.size.width / thumbnailRect.size.width;
+              CGRect targetRect = CGRectMake(rect.origin.x * factor, rect.origin.y * factor, rect.size.width * factor, rect.size.height * factor);
+
+              image = [UIImage imageFromImage:image inRect:targetRect];
+              rotatedCGImage = image.CGImage;
+          }
 
           // Erase metadata orientation
           [imageMetadata removeObjectForKey:(NSString *)kCGImagePropertyOrientation];
