@@ -6,6 +6,8 @@
 package com.lwansbrough.RCTCamera;
 
 import android.content.ContentValues;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.hardware.Camera;
 import android.media.*;
 import android.net.Uri;
@@ -26,6 +28,7 @@ import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
 
 import java.io.*;
+import java.nio.ByteBuffer;
 import java.text.SimpleDateFormat;
 import java.util.Collections;
 import java.util.Date;
@@ -36,7 +39,7 @@ import java.util.Map;
 import javax.annotation.Nullable;
 
 public class RCTCameraModule extends ReactContextBaseJavaModule
-    implements MediaRecorder.OnInfoListener, MediaRecorder.OnErrorListener, LifecycleEventListener {
+        implements MediaRecorder.OnInfoListener, MediaRecorder.OnErrorListener, LifecycleEventListener {
     private static final String TAG = "RCTCameraModule";
 
     public static final int RCT_CAMERA_ASPECT_FILL = 0;
@@ -90,21 +93,21 @@ public class RCTCameraModule extends ReactContextBaseJavaModule
     }
 
     public static ReactApplicationContext getReactContextSingleton() {
-      return _reactContext;
+        return _reactContext;
     }
 
     /**
      * Callback invoked on new MediaRecorder info.
-     *
+     * <p>
      * See https://developer.android.com/reference/android/media/MediaRecorder.OnInfoListener.html
      * for more information.
      *
-     * @param mr MediaRecorder instance for which this callback is being invoked.
-     * @param what Type of info we have received.
+     * @param mr    MediaRecorder instance for which this callback is being invoked.
+     * @param what  Type of info we have received.
      * @param extra Extra code, specific to the info type.
      */
     public void onInfo(MediaRecorder mr, int what, int extra) {
-        if ( what == MediaRecorder.MEDIA_RECORDER_INFO_MAX_DURATION_REACHED ||
+        if (what == MediaRecorder.MEDIA_RECORDER_INFO_MAX_DURATION_REACHED ||
                 what == MediaRecorder.MEDIA_RECORDER_INFO_MAX_FILESIZE_REACHED) {
             if (mRecordingPromise != null) {
                 releaseMediaRecorder(); // release the MediaRecorder object and resolve promise
@@ -114,12 +117,12 @@ public class RCTCameraModule extends ReactContextBaseJavaModule
 
     /**
      * Callback invoked when a MediaRecorder instance encounters an error while recording.
-     *
+     * <p>
      * See https://developer.android.com/reference/android/media/MediaRecorder.OnErrorListener.html
      * for more information.
      *
-     * @param mr MediaRecorder instance for which this callback is being invoked.
-     * @param what Type of error that has occurred.
+     * @param mr    MediaRecorder instance for which this callback is being invoked.
+     * @param what  Type of error that has occurred.
      * @param extra Extra code, specific to the error type.
      */
     public void onError(MediaRecorder mr, int what, int extra) {
@@ -250,7 +253,7 @@ public class RCTCameraModule extends ReactContextBaseJavaModule
 
     /**
      * Prepare media recorder for video capture.
-     *
+     * <p>
      * See "Capturing Videos" at https://developer.android.com/guide/topics/media/camera.html for
      * a guideline of steps and more information in general.
      *
@@ -353,7 +356,7 @@ public class RCTCameraModule extends ReactContextBaseJavaModule
 
         try {
             mMediaRecorder.start();
-            MRStartTime =  System.currentTimeMillis();
+            MRStartTime = System.currentTimeMillis();
             mRecordingOptions = options;
             mRecordingPromise = promise;  // only got here if mediaRecorder started
         } catch (Exception ex) {
@@ -364,7 +367,7 @@ public class RCTCameraModule extends ReactContextBaseJavaModule
 
     /**
      * Release media recorder following video capture (or failure to start recording session).
-     *
+     * <p>
      * See "Capturing Videos" at https://developer.android.com/guide/topics/media/camera.html for
      * a guideline of steps and more information in general.
      */
@@ -374,7 +377,7 @@ public class RCTCameraModule extends ReactContextBaseJavaModule
         if (duration < 1500) {
             try {
                 Thread.sleep(1500 - duration);
-            } catch(InterruptedException ex) {
+            } catch (InterruptedException ex) {
                 Log.e(TAG, "releaseMediaRecorder thread sleep error.", ex);
             }
         }
@@ -459,14 +462,12 @@ public class RCTCameraModule extends ReactContextBaseJavaModule
         mRecordingPromise = null;
     }
 
-    public static byte[] convertFileToByteArray(File f)
-    {
+    public static byte[] convertFileToByteArray(File f) {
         byte[] byteArray = null;
-        try
-        {
+        try {
             InputStream inputStream = new FileInputStream(f);
             ByteArrayOutputStream bos = new ByteArrayOutputStream();
-            byte[] b = new byte[1024*8];
+            byte[] b = new byte[1024 * 8];
             int bytesRead;
 
             while ((bytesRead = inputStream.read(b)) != -1) {
@@ -474,9 +475,7 @@ public class RCTCameraModule extends ReactContextBaseJavaModule
             }
 
             byteArray = bos.toByteArray();
-        }
-        catch (IOException e)
-        {
+        } catch (IOException e) {
             e.printStackTrace();
         }
         return byteArray;
@@ -528,7 +527,6 @@ public class RCTCameraModule extends ReactContextBaseJavaModule
 
         RCTCamera.getInstance().adjustCameraRotationToDeviceOrientation(options.getInt("type"), deviceOrientation);
         camera.setPreviewCallback(null);
-
         Camera.PictureCallback captureCallback = new Camera.PictureCallback() {
             @Override
             public void onPictureTaken(final byte[] data, Camera camera) {
@@ -538,7 +536,53 @@ public class RCTCameraModule extends ReactContextBaseJavaModule
                 AsyncTask.execute(new Runnable() {
                     @Override
                     public void run() {
-                        processImage(new MutableImage(data), shouldMirror, options, promise);
+                        Log.i(TAG, "options:" + options.toString());
+
+                        byte[] imageData = data;
+                        if (options.hasKey("cropRect")) {
+
+                            ReadableMap cropRect = options.getMap("cropRect");
+
+                            double statusBarHeight = getCurrentActivity().getResources().getDimensionPixelSize(getCurrentActivity().getResources().getIdentifier("status_bar_height", "dimen", "android"));
+
+                            double windowWdith = getCurrentActivity().getResources().getDisplayMetrics().widthPixels;
+                            double windowHeight = getCurrentActivity().getResources().getDisplayMetrics().heightPixels;
+
+                            Log.i(TAG, "windowWdith:" + windowWdith);
+                            Log.i(TAG, "windowHeight:" + windowHeight);
+
+                            Bitmap bitmap = BitmapFactory.decodeStream(new ByteArrayInputStream(data));
+                            Log.i(TAG, "bitmap:" + bitmap.getWidth() + "=" + bitmap.getHeight());
+                            double zoomWidth, x, y, width, height = 0;
+                            double density = getCurrentActivity().getResources().getDisplayMetrics().density;
+
+                            if (bitmap.getHeight() < windowHeight) {
+                                zoomWidth = bitmap.getHeight() / windowHeight * windowWdith;
+                                x = cropRect.getDouble("x") * density + (bitmap.getWidth() - zoomWidth) / 2;
+                                y = cropRect.getDouble("y") * density + statusBarHeight;
+                                width = cropRect.getDouble("width") * density - cropRect.getDouble("x") * density;
+                                height = cropRect.getDouble("height") * density - cropRect.getDouble("y") * density - statusBarHeight / 2;
+                            } else {
+                                zoomWidth = bitmap.getHeight() / windowHeight * windowWdith;
+                                x = cropRect.getDouble("x") * density * bitmap.getHeight() / windowHeight+ (bitmap.getWidth() - zoomWidth) / 2;
+                                y = cropRect.getDouble("y") * density * bitmap.getHeight() / windowHeight ;
+                                width = cropRect.getDouble("width") * density * bitmap.getHeight() / windowHeight ;
+                                height = cropRect.getDouble("height") * density * bitmap.getHeight() / windowHeight ;
+                            }
+
+                            Log.i(TAG, "x:" + x);
+                            Log.i(TAG, "y:" + y);
+                            Log.i(TAG, "width:" + width);
+                            Log.i(TAG, "height:" + height);
+
+                            Bitmap bitmap1 = Bitmap.createBitmap(bitmap, (int) x, (int) y, (int) width, (int) height);
+
+                            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+                            bitmap1.compress(Bitmap.CompressFormat.JPEG, 100, outputStream);
+                            imageData = outputStream.toByteArray();
+                        }
+
+                        processImage(new MutableImage(imageData), shouldMirror, options, promise);
                     }
                 });
 
@@ -546,13 +590,13 @@ public class RCTCameraModule extends ReactContextBaseJavaModule
             }
         };
 
-        if(mSafeToCapture) {
-          try {
-            camera.takePicture(null, null, captureCallback);
-            mSafeToCapture = false;
-          } catch(RuntimeException ex) {
-              Log.e(TAG, "Couldn't capture photo.", ex);
-          }
+        if (mSafeToCapture) {
+            try {
+                camera.takePicture(null, null, captureCallback);
+                mSafeToCapture = false;
+            } catch (RuntimeException ex) {
+                Log.e(TAG, "Couldn't capture photo.", ex);
+            }
         }
     }
 
@@ -566,7 +610,7 @@ public class RCTCameraModule extends ReactContextBaseJavaModule
         } catch (MutableImage.ImageMutationFailedException e) {
             promise.reject("Error mirroring image", e);
         }
-        
+
         if (shouldMirror) {
             try {
                 mutableImage.mirrorImage();
@@ -576,7 +620,7 @@ public class RCTCameraModule extends ReactContextBaseJavaModule
         }
 
         int jpegQualityPercent = 80;
-        if(options.hasKey("jpegQuality")) {
+        if (options.hasKey("jpegQuality")) {
             jpegQualityPercent = options.getInt("jpegQuality");
         }
 
@@ -738,7 +782,7 @@ public class RCTCameraModule extends ReactContextBaseJavaModule
     }
 
     private void addToMediaStore(String path) {
-        MediaScannerConnection.scanFile(_reactContext, new String[] { path }, null, null);
+        MediaScannerConnection.scanFile(_reactContext, new String[]{path}, null, null);
     }
 
     /**
