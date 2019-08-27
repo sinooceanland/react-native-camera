@@ -15,6 +15,7 @@ import android.hardware.Camera;
 import android.media.*;
 import android.net.Uri;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Environment;
 import android.provider.MediaStore;
 import android.util.Base64;
@@ -560,13 +561,19 @@ public class RCTCameraModule extends ReactContextBaseJavaModule
                             double density = getCurrentActivity().getResources().getDisplayMetrics().density;
                             Log.i(TAG, "density:" + density);
 
-                            if(bitmap.getWidth()>bitmap.getHeight()){
+                            Log.i(TAG, "getAdjustedDeviceOrientation:" + RCTCamera.getInstance().getAdjustedDeviceOrientation());
+
+
+                            if (bitmap.getWidth() > bitmap.getHeight()) {
                                 int rotation = RCTCamera.getInstance()._cameraInfos.get(options.getInt("type")).rotation;
-                                Log.i(TAG, "rotation:" +  rotation);
-                                if(rotation == 90){
-                                    bitmap = adjustPhotoRotation(bitmap,rotation);
-                                }else{
-                                    bitmap = adjustPhotoRotation(bitmap,rotation+90);
+                                Log.i(TAG, "rotation:" + rotation);
+                                if (rotation == 90) {
+                                    bitmap = adjustPhotoRotation(bitmap, rotation);
+                                } else {
+                                    if (Build.MANUFACTURER.equalsIgnoreCase("Xiaomi") && rotation == 180) {
+                                        bitmap = adjustPhotoRotation(bitmap, 90);
+                                    } else
+                                        bitmap = adjustPhotoRotation(bitmap, rotation + 90);
                                 }
                             }
 
@@ -578,12 +585,12 @@ public class RCTCameraModule extends ReactContextBaseJavaModule
                                 height = cropRect.getDouble("height") * density - cropRect.getDouble("y") * density - statusBarHeight / 2;
                             } else {
                                 zoomWidth = bitmap.getHeight() / windowHeight * windowWdith;
-                                x = cropRect.getDouble("x") * density * bitmap.getHeight() / windowHeight+ (bitmap.getWidth() - zoomWidth) / 2;
-                                y = cropRect.getDouble("y") * density * bitmap.getHeight() / windowHeight ;
-                                width = cropRect.getDouble("width") * density * bitmap.getHeight() / windowHeight ;
-                                height = cropRect.getDouble("height") * density * bitmap.getHeight() / windowHeight ;
+                                x = cropRect.getDouble("x") * density * bitmap.getHeight() / windowHeight + (bitmap.getWidth() - zoomWidth) / 2;
+                                y = cropRect.getDouble("y") * density * bitmap.getHeight() / windowHeight;
+                                width = cropRect.getDouble("width") * density * bitmap.getHeight() / windowHeight;
+                                height = cropRect.getDouble("height") * density * bitmap.getHeight() / windowHeight;
                             }
-                            Log.i(TAG, "zoomWidth:" +  zoomWidth);
+                            Log.i(TAG, "zoomWidth:" + zoomWidth);
                             Log.i(TAG, "x:" + x);
                             Log.i(TAG, "y:" + y);
                             Log.i(TAG, "width:" + width);
@@ -614,7 +621,7 @@ public class RCTCameraModule extends ReactContextBaseJavaModule
         }
     }
 
-    private  int readPicDegree(String path) {
+    private int readPicDegree(String path) {
         int degree = 0;
 
         // 读取图片文件信息的类ExifInterface
