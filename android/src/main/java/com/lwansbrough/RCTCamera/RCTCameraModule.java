@@ -8,6 +8,9 @@ package com.lwansbrough.RCTCamera;
 import android.content.ContentValues;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.Matrix;
+import android.graphics.Paint;
 import android.hardware.Camera;
 import android.media.*;
 import android.net.Uri;
@@ -556,6 +559,14 @@ public class RCTCameraModule extends ReactContextBaseJavaModule
                             double zoomWidth, x, y, width, height = 0;
                             double density = getCurrentActivity().getResources().getDisplayMetrics().density;
 
+                            if(bitmap.getWidth()>bitmap.getHeight()){
+                                Log.i(TAG, "RCTCamera.getInstance().getAdjustedDeviceOrientation():" + RCTCamera.getInstance().getAdjustedDeviceOrientation());
+                                Log.i(TAG, "RCTCamera.getInstance().getActualDeviceOrientation():" + RCTCamera.getInstance().getActualDeviceOrientation());
+                                Log.i(TAG, "RCTCamera.getInstance().getOrientation():" + RCTCamera.getInstance().getOrientation());
+
+                                bitmap = adjustPhotoRotation(bitmap,RCTCamera.getInstance().getAdjustedDeviceOrientation());
+                            }
+
                             if (bitmap.getHeight() < windowHeight) {
                                 zoomWidth = bitmap.getHeight() / windowHeight * windowWdith;
                                 x = cropRect.getDouble("x") * density + (bitmap.getWidth() - zoomWidth) / 2;
@@ -598,6 +609,65 @@ public class RCTCameraModule extends ReactContextBaseJavaModule
                 Log.e(TAG, "Couldn't capture photo.", ex);
             }
         }
+    }
+
+    private  int readPicDegree(String path) {
+        int degree = 0;
+
+        // 读取图片文件信息的类ExifInterface
+        ExifInterface exif = null;
+        try {
+            exif = new ExifInterface(path);
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+
+        if (exif != null) {
+            int orientation = exif.getAttributeInt(
+                    ExifInterface.TAG_ORIENTATION,
+                    ExifInterface.ORIENTATION_NORMAL);
+            switch (orientation) {
+                case ExifInterface.ORIENTATION_ROTATE_90:
+                    degree = 90;
+                    break;
+
+                case ExifInterface.ORIENTATION_ROTATE_180:
+                    degree = 180;
+                    break;
+
+                case ExifInterface.ORIENTATION_ROTATE_270:
+                    degree = 270;
+                    break;
+            }
+        }
+
+        return degree;
+    }
+
+    private Bitmap adjustPhotoRotation(Bitmap bitmap, int orientationDegree) {
+        Matrix matrix = new Matrix();
+        matrix.setRotate(orientationDegree, (float) bitmap.getWidth() / 2,
+                (float) bitmap.getHeight() / 2);
+        float targetX, targetY;
+        if (orientationDegree == 90) {
+            targetX = bitmap.getHeight();
+            targetY = 0;
+        } else {
+            targetX = bitmap.getHeight();
+            targetY = bitmap.getWidth();
+        }
+        final float[] values = new float[9];
+        matrix.getValues(values);
+        float x1 = values[Matrix.MTRANS_X];
+        float y1 = values[Matrix.MTRANS_Y];
+        matrix.postTranslate(targetX - x1, targetY - y1);
+        Bitmap canvasBitmap = Bitmap.createBitmap(bitmap.getHeight(), bitmap.getWidth(),
+                Bitmap.Config.ARGB_8888);
+        Paint paint = new Paint();
+        Canvas canvas = new Canvas(canvasBitmap);
+        canvas.drawBitmap(bitmap, matrix, paint);
+        return canvasBitmap;
     }
 
     /**
