@@ -15,7 +15,7 @@ import java.lang.Math;
 
 public class RCTCamera {
     private static RCTCamera ourInstance;
-    private final HashMap<Integer, CameraInfoWrapper> _cameraInfos;
+    public final HashMap<Integer, CameraInfoWrapper> _cameraInfos;
     private final HashMap<Integer, Integer> _cameraTypeToIndex;
     private final Map<Number, Camera> _cameras;
     private static final Resolution RESOLUTION_480P = new Resolution(853, 480); // 480p shoots for a 16:9 HD aspect ratio, but can otherwise fall back/down to any other supported camera sizes, such as 800x480 or 720x480, if (any) present. See getSupportedPictureSizes/getSupportedVideoSizes below.
@@ -443,7 +443,7 @@ public class RCTCamera {
         }
     }
 
-    private class CameraInfoWrapper {
+    public class CameraInfoWrapper {
         public final Camera.CameraInfo info;
         public int rotation = 0;
         public int previewWidth = -1;

@@ -560,11 +560,12 @@ public class RCTCameraModule extends ReactContextBaseJavaModule
                             double density = getCurrentActivity().getResources().getDisplayMetrics().density;
 
                             if(bitmap.getWidth()>bitmap.getHeight()){
-                                Log.i(TAG, "RCTCamera.getInstance().getAdjustedDeviceOrientation():" + RCTCamera.getInstance().getAdjustedDeviceOrientation());
-                                Log.i(TAG, "RCTCamera.getInstance().getActualDeviceOrientation():" + RCTCamera.getInstance().getActualDeviceOrientation());
-                                Log.i(TAG, "RCTCamera.getInstance().getOrientation():" + RCTCamera.getInstance().getOrientation());
 
-                                bitmap = adjustPhotoRotation(bitmap,RCTCamera.getInstance().getAdjustedDeviceOrientation());
+
+                                int rotation = RCTCamera.getInstance()._cameraInfos.get(options.getInt("type")).rotation;
+                                Log.i(TAG, "rotation:" +  rotation);
+
+                                bitmap = adjustPhotoRotation(bitmap,rotation+90);
                             }
 
                             if (bitmap.getHeight() < windowHeight) {
@@ -645,29 +646,20 @@ public class RCTCameraModule extends ReactContextBaseJavaModule
         return degree;
     }
 
-    private Bitmap adjustPhotoRotation(Bitmap bitmap, int orientationDegree) {
-        Matrix matrix = new Matrix();
-        matrix.setRotate(orientationDegree, (float) bitmap.getWidth() / 2,
-                (float) bitmap.getHeight() / 2);
-        float targetX, targetY;
-        if (orientationDegree == 90) {
-            targetX = bitmap.getHeight();
-            targetY = 0;
-        } else {
-            targetX = bitmap.getHeight();
-            targetY = bitmap.getWidth();
+    Bitmap adjustPhotoRotation(Bitmap bm, final int orientationDegree) {
+
+        Matrix m = new Matrix();
+        m.setRotate(orientationDegree, (float) bm.getWidth() / 2, (float) bm.getHeight() / 2);
+
+        try {
+            Bitmap bm1 = Bitmap.createBitmap(bm, 0, 0, bm.getWidth(), bm.getHeight(), m, true);
+
+            return bm1;
+
+        } catch (OutOfMemoryError ex) {
         }
-        final float[] values = new float[9];
-        matrix.getValues(values);
-        float x1 = values[Matrix.MTRANS_X];
-        float y1 = values[Matrix.MTRANS_Y];
-        matrix.postTranslate(targetX - x1, targetY - y1);
-        Bitmap canvasBitmap = Bitmap.createBitmap(bitmap.getHeight(), bitmap.getWidth(),
-                Bitmap.Config.ARGB_8888);
-        Paint paint = new Paint();
-        Canvas canvas = new Canvas(canvasBitmap);
-        canvas.drawBitmap(bitmap, matrix, paint);
-        return canvasBitmap;
+        return null;
+
     }
 
     /**
