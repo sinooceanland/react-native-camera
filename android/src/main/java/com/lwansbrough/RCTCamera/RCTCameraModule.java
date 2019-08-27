@@ -558,14 +558,16 @@ public class RCTCameraModule extends ReactContextBaseJavaModule
                             Log.i(TAG, "bitmap:" + bitmap.getWidth() + "=" + bitmap.getHeight());
                             double zoomWidth, x, y, width, height = 0;
                             double density = getCurrentActivity().getResources().getDisplayMetrics().density;
+                            Log.i(TAG, "density:" + density);
 
                             if(bitmap.getWidth()>bitmap.getHeight()){
-
-
                                 int rotation = RCTCamera.getInstance()._cameraInfos.get(options.getInt("type")).rotation;
                                 Log.i(TAG, "rotation:" +  rotation);
-
-                                bitmap = adjustPhotoRotation(bitmap,rotation+90);
+                                if(rotation == 90){
+                                    bitmap = adjustPhotoRotation(bitmap,rotation);
+                                }else{
+                                    bitmap = adjustPhotoRotation(bitmap,rotation+90);
+                                }
                             }
 
                             if (bitmap.getHeight() < windowHeight) {
@@ -581,7 +583,7 @@ public class RCTCameraModule extends ReactContextBaseJavaModule
                                 width = cropRect.getDouble("width") * density * bitmap.getHeight() / windowHeight ;
                                 height = cropRect.getDouble("height") * density * bitmap.getHeight() / windowHeight ;
                             }
-
+                            Log.i(TAG, "zoomWidth:" +  zoomWidth);
                             Log.i(TAG, "x:" + x);
                             Log.i(TAG, "y:" + y);
                             Log.i(TAG, "width:" + width);
